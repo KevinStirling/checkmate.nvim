@@ -253,6 +253,21 @@ function M.generate_style_defaults()
     fg = M.ensure_contrast(util.blend(base.fg, base.bg, 0.6), base.bg, dim_contrast_ratio),
   }
 
+  -- Canceled todos - should look "canceled"
+  style.canceled_marker = {
+    fg = colors.diagnostic_ok or default_ok,
+    bold = true,
+  }
+
+  style.canceled_main_content = {
+    fg = M.ensure_contrast(util.blend(base.fg, base.bg, 0.6), base.bg, dim_contrast_ratio),
+    strikethrough = true,
+  }
+
+  style.canceled_additional_content = {
+    fg = M.ensure_contrast(util.blend(base.fg, base.bg, 0.6), base.bg, dim_contrast_ratio),
+  }
+
   -- For todo count indicators (e.g. "2/5" completed)
   style.todo_count_indicator = {
     fg = colors.special or default_special,

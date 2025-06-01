@@ -133,6 +133,10 @@ function M.setup_keymaps(bufnr)
       command = "CheckmateArchive",
       modes = { "n" },
     },
+    cancel = {
+      command = "CheckmateCancel",
+      modes = { "n", "v" },
+    },
   }
 
   for key, action_name in pairs(keys) do

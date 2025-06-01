@@ -1,6 +1,6 @@
 local M = {}
 
----@alias checkmate.TodoItemState "checked" | "unchecked"
+---@alias checkmate.TodoItemState "checked" | "unchecked" | "canceled"
 
 --- @class TodoMarkerInfo
 --- @field position {row: integer, col: integer} Position of the marker (0-indexed)
@@ -69,12 +69,14 @@ M.list_item_markers = { "-", "+", "*" }
 local PATTERN_CACHE = {
   checked_todo = nil,
   unchecked_todo = nil,
+  canceled_todo = nil
 }
 
 function M.clear_pattern_cache()
   PATTERN_CACHE = {
     checked_todo = nil,
     unchecked_todo = nil,
+    canceled_todo = nil,
   }
 end
 
@@ -104,6 +106,20 @@ function M.getUncheckedTodoPatterns()
     PATTERN_CACHE.unchecked_todo = build_patterns(unchecked_marker)
   end
   return PATTERN_CACHE.unchecked_todo
+end
+
+function M.getCanceledTodoPatterns()
+  if not PATTERN_CACHE.canceled_todo then
+    local canceled_marker = require("checkmate.config").options.todo_markers.canceled
+    local util = require("checkmate.util")
+    ---@type fun(marker: string): string[]
+    local build_patterns = util.build_todo_patterns({
+      simple_markers = M.list_item_markers,
+      use_numbered_list_markers = true,
+    })
+    PATTERN_CACHE.canceled_todo = build_patterns(canceled_marker)
+  end
+  return PATTERN_CACHE.canceled_todo
 end
 
 -- [buffer] -> {version: integer, current: table<integer, checkmate.TodoItem> }
@@ -150,6 +166,7 @@ function M.get_todo_item_state(line)
   local todo_state = nil
   local unchecked_patterns = M.getUncheckedTodoPatterns()
   local checked_patterns = M.getCheckedTodoPatterns()
+  local canceled_patterns = M.getCanceledTodoPatterns()
 
   if util.match_first(unchecked_patterns, line) then
     todo_state = "unchecked"
@@ -157,6 +174,9 @@ function M.get_todo_item_state(line)
   elseif util.match_first(checked_patterns, line) then
     todo_state = "checked"
     log.trace("Matched checked pattern", { module = "parser" })
+  elseif util.match_first(canceled_patterns, line) then
+    todo_state = "canceled"
+    log.trace("Matched canceled pattern", { module = "parser"})
   end
 
   log.trace("Todo type: " .. (todo_state or "nil"), { module = "parser" })
@@ -174,6 +194,7 @@ function M.setup()
 
   log.debug("Checked pattern is: " .. table.concat(M.getCheckedTodoPatterns() or {}, " , "))
   log.debug("Unchecked pattern is: " .. table.concat(M.getUncheckedTodoPatterns() or {}, " , "))
+  log.debug("Canceled pattern is: " .. table.concat(M.getCanceledTodoPatterns() or {}, " , "))
 
   local todo_query = [[
 ; Capture list items and their content for structure understanding
@@ -220,8 +241,10 @@ function M.convert_markdown_to_unicode(bufnr)
   -- Build patterns only once
   local unchecked_patterns = util.build_markdown_checkbox_patterns(M.list_item_markers, "%[ %]")
   local checked_patterns = util.build_markdown_checkbox_patterns(M.list_item_markers, "%[[xX]%]")
+  local canceled_patters = util.build_markdown_checkbox_patterns(M.list_item_markers, "%[[~]%]")
   local unchecked = config.options.todo_markers.unchecked
   local checked = config.options.todo_markers.checked
+  local canceled = config.options.todo_markers.canceled
 
   local new_lines = {}
 
@@ -236,6 +259,11 @@ function M.convert_markdown_to_unicode(bufnr)
     -- Apply all checked replacements
     for _, pat in ipairs(checked_patterns) do
       new_line = new_line:gsub(pat, "%1" .. checked)
+    end
+
+    -- Apply all checked replacements
+    for _, pat in ipairs(canceled_patters) do
+      new_line = new_line:gsub(pat, "%1" .. canceled)
     end
 
     if new_line ~= line then
@@ -274,11 +302,13 @@ function M.convert_unicode_to_markdown(bufnr)
   -- Build patterns
   local unchecked = config.options.todo_markers.unchecked
   local checked = config.options.todo_markers.checked
+  local canceled = config.options.todo_markers.canceled
 
-  local unchecked_patterns, checked_patterns
+  local unchecked_patterns, checked_patterns, canceled_patterns
   local ok, err = pcall(function()
     unchecked_patterns = util.build_unicode_todo_patterns(M.list_item_markers, unchecked)
     checked_patterns = util.build_unicode_todo_patterns(M.list_item_markers, checked)
+    canceled_patterns = util.build_unicode_todo_patterns(M.list_item_markers, canceled)
     return true
   end)
 
@@ -312,6 +342,23 @@ function M.convert_unicode_to_markdown(bufnr)
     end
 
     for _, pattern in ipairs(checked_patterns) do
+      ok, err = pcall(function()
+        new_line = new_line:gsub(pattern, "%1[x]")
+        return true
+      end)
+
+      if not ok then
+        log.error(string.format("Error on line %d with checked pattern: %s", i, tostring(err)), { module = "parser" })
+        had_error = true
+        break
+      end
+    end
+
+    if had_error then
+      return false
+    end
+
+    for _, pattern in ipairs(canceled_patterns) do
       ok, err = pcall(function()
         new_line = new_line:gsub(pattern, "%1[x]")
         return true
@@ -564,6 +611,7 @@ function M.discover_todos(bufnr)
       -- get marker position
       local todo_marker = todo_state == "checked" and config.options.todo_markers.checked
         or config.options.todo_markers.unchecked
+        or config.options.todo_markers.canceled
       local marker_col = 0
       local todo_marker_byte_pos = first_line:find(todo_marker, 1, true)
       if todo_marker_byte_pos then

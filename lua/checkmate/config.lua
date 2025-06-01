@@ -32,7 +32,7 @@ M.ns_todos = vim.api.nvim_create_namespace("checkmate_todos")
 ---Note: mappings for metadata are set separately in the `metadata` table
 ---@field keys ( table<string, checkmate.Action>| false )
 ---
----Characters for todo markers (checked and unchecked)
+---Characters for todo markers (checked, unchecked, and canceled)
 ---@field todo_markers checkmate.TodoMarkers
 ---
 ---Default list item marker to be used when creating new Todo items
@@ -94,7 +94,7 @@ M.ns_todos = vim.api.nvim_create_namespace("checkmate_todos")
 -----------------------------------------------------
 
 ---Actions that can be used for keymaps in the `keys` table of 'checkmate.Config'
----@alias checkmate.Action "toggle" | "check" | "uncheck" | "create" | "remove_all_metadata" | "archive"
+---@alias checkmate.Action "toggle" | "check" | "uncheck" | "create" | "remove_all_metadata" | "archive" | "cancel"
 
 ---Options for todo count indicator position
 ---@alias checkmate.TodoCountPosition "eol" | "inline"
@@ -125,6 +125,9 @@ M.ns_todos = vim.api.nvim_create_namespace("checkmate_todos")
 ---
 ---Character used for checked items
 ---@field checked string
+---
+---Character used for canceled items
+---@field canceled string
 
 -----------------------------------------------------
 
@@ -171,6 +174,9 @@ M.ns_todos = vim.api.nvim_create_namespace("checkmate_todos")
 ---| "checked_main_content"
 ---| "checked_additional_content"
 ---| "todo_count_indicator"
+---| "canceled_main_content"
+---| "canceled_additional_content"
+---| "canceled_marker"
 
 ---Customize the style of markers and content
 ---@class checkmate.StyleSettings : table<checkmate.StyleKey, vim.api.keyset.highlight>
@@ -205,6 +211,17 @@ M.ns_todos = vim.api.nvim_create_namespace("checkmate_todos")
 ---
 ---Highlight settings for the todo count indicator (e.g. x/x)
 ---@field todo_count_indicator vim.api.keyset.highlight?
+---
+---Highlight settings for canceled markers
+---@field canceled_marker vim.api.keyset.highlight?
+---
+---Highlight settings for main content of canceled todo items
+---This is typically the first line/paragraph
+---@field canceled_main_content vim.api.keyset.highlight?
+---
+---Highlight settings for additional content of canceled todo items
+---This is the content below the first line/paragraph
+---@field canceled_additional_content vim.api.keyset.highlight?
 
 -----------------------------------------------------
 
@@ -294,9 +311,9 @@ local _DEFAULTS = {
   notify = true,
   files = { "todo", "TODO", "*.todo*" }, -- matches TODO, TODO.md, .todo.md
   log = {
-    level = "info",
-    use_file = false,
-    use_buffer = false,
+    level = "debug",
+    use_file = true,
+    use_buffer = true,
   },
   -- Default keymappings
   keys = {
@@ -306,11 +323,13 @@ local _DEFAULTS = {
     ["<leader>Tn"] = "create", -- Create todo item
     ["<leader>TR"] = "remove_all_metadata", -- Remove all metadata from a todo item
     ["<leader>Ta"] = "archive", -- Archive checked/completed todo items (move to bottom section)
+    ["<leader>Tx"] = "cancel", -- Set todo item as canceled (wont do)
   },
   default_list_marker = "-",
   todo_markers = {
     unchecked = "□",
     checked = "✔",
+    canceled = "󰰱"
   },
   style = {},
   todo_action_depth = 1, --  Depth within a todo item's hierachy from which actions (e.g. toggle) will act on the parent todo item
@@ -464,6 +483,7 @@ local function validate_options(opts)
     validate_type(opts.todo_markers, "table", "todo_markers", false)
     validate_type(opts.todo_markers.checked, "string", "todo_markers.checked", true)
     validate_type(opts.todo_markers.unchecked, "string", "todo_markers.unchecked", true)
+    validate_type(opts.todo_markers.canceled, "string", "todo_markers.canceled", true)
   end
 
   -- Validate default_list_marker
@@ -490,6 +510,9 @@ local function validate_options(opts)
       "checked_main_content",
       "checked_additional_content",
       "todo_count_indicator",
+      "canceled_marker",
+      "canceled_main_content",
+      "canceled_additional_content",
     }
 
     for _, field in ipairs(style_fields) do

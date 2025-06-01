@@ -298,6 +298,56 @@ function M.set_todo_item(todo_item, target_state)
   return true
 end
 
+---Sets a given todo item to a canceled state
+---@return boolean success
+function M.set_canceled()
+  local api = require("checkmate.api")
+  local transaction = require("checkmate.transaction")
+  local config = require("checkmate.config")
+  local parser = require("checkmate.parser")
+  local todo_item
+
+  local profiler = require("checkmate.profiler")
+  profiler.start("M.toggle")
+
+  local smart_toggle_enabled = config.options.smart_toggle and config.options.smart_toggle.enabled
+
+  local ctx = transaction.current_context()
+  if ctx then
+    -- Queue the operation in the current transaction
+    -- If toggle() is run within an existing transaction, we will use the cursor position
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    todo_item =
+      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+    if todo_item then
+      if smart_toggle_enabled then
+        api.propagate_toggle(ctx, { todo_item }, transaction._state.todo_map, "canceled")
+      else
+        ctx.add_op(api.toggle_state, todo_item.id, "canceled")
+      end
+    end
+    profiler.stop("M.toggle")
+    return true
+  end
+
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  -- If smart toggle is enabled, we need the todo_map
+  local todo_map = smart_toggle_enabled and parser.get_todo_map(bufnr) or nil
+
+  transaction.run(bufnr, todo_map, function(_ctx)
+    if smart_toggle_enabled and todo_map then
+      api.propagate_toggle(_ctx, { todo_item }, todo_map, "canceled")
+    else
+      _ctx.add_op(api.set_todo_item, todo_item.id, "canceled")
+    end
+  end, function()
+    require("checkmate.highlights").apply_highlighting(bufnr)
+  end)
+
+  return true
+end
+
 --- Set todo item to checked state
 ---
 --- See `toggle()`
@@ -312,6 +362,14 @@ end
 ---@return boolean success
 function M.uncheck()
   return M.toggle("unchecked")
+end
+
+--- Set todo item to canceled state
+---
+---@return boolean success
+function M.cancel()
+  vim.notify("canceling!")
+  return M.set_canceled()
 end
 
 --- Create a new todo item

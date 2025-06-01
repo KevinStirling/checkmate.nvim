@@ -68,6 +68,14 @@ M.regular_commands = {
     end,
     opts = { desc = "Identify Checkmate formatting issues" },
   },
+  {
+    name = "Cancel",
+    cmd = "CheckmateCancel",
+    func = function()
+      require("checkmate").cancel()
+    end,
+    opts = { desc = "Set todo item to canceled state" },
+  },
   -- TODO: auto-fix
 
   --[[ {

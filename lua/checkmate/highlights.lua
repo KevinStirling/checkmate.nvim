@@ -16,6 +16,8 @@ M.PRIORITY = {
 function M.get_todo_content_highlight(todo_state, is_main_content)
   if todo_state == "checked" then
     return is_main_content and "CheckmateCheckedMainContent" or "CheckmateCheckedAdditionalContent"
+  elseif todo_state == "canceled" then
+    return is_main_content and "CheckmateCanceledMainContent" or "CheckmateCanceledAdditionalContent"
   else
     return is_main_content and "CheckmateUncheckedMainContent" or "CheckmateUncheckedAdditionalContent"
   end
@@ -105,6 +107,11 @@ function M.apply_highlight_groups()
     CheckmateCheckedMarker = config.options.style.checked_marker,
     CheckmateCheckedMainContent = config.options.style.checked_main_content,
     CheckmateCheckedAdditionalContent = config.options.style.checked_additional_content,
+
+    -- Canceled todos
+    CheckmateCanceledMarker = config.options.style.canceled_marker,
+    CheckmateCanceledMainContent = config.options.style.canceled_main_content,
+    CheckmateCanceledAdditionalContent = config.options.style.canceled_additional_content,
 
     -- Todo count
     CheckmateTodoCountIndicator = config.options.style.todo_count_indicator,
@@ -258,7 +265,7 @@ function M.highlight_todo_item(bufnr, todo_item, todo_map, opts)
   end
 end
 
--- Highlight the todo marker (✓ or □)
+-- Highlight the todo marker (✓ or □ or 󰰱)
 ---@param bufnr integer
 ---@param todo_item checkmate.TodoItem
 function M.highlight_todo_marker(bufnr, todo_item)
@@ -268,7 +275,7 @@ function M.highlight_todo_marker(bufnr, todo_item)
 
   -- Only highlight if we have a valid position
   if marker_pos.col >= 0 then
-    local hl_group = todo_item.state == "checked" and "CheckmateCheckedMarker" or "CheckmateUncheckedMarker"
+    local hl_group = todo_item.state == "checked" and "CheckmateCheckedMarker" or "CheckmateUncheckedMarker" or "canceled" and "CheckmateCanceledMarker"
 
     vim.api.nvim_buf_set_extmark(bufnr, config.ns, marker_pos.row, marker_pos.col, {
       end_row = marker_pos.row,
