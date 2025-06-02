@@ -571,7 +571,7 @@ function M.archive_todos(opts)
     -- which represents a new section
     local next_heading_pat = heading_level
         and ("^%s*" .. string.rep("#", heading_level_len, heading_level_len) .. "+%s")
-      or "^%s*#+%s"
+        or "^%s*#+%s"
 
     for i, line in ipairs(current_buf_lines) do
       if line:match("^%s*" .. vim.pesc(archive_heading_string) .. "%s*$") then
@@ -601,8 +601,8 @@ function M.archive_todos(opts)
     local todo = entry.item
     local id = entry.id
     local in_arch = archive_start_row
-      and todo.range.start.row > archive_start_row
-      and todo.range["end"].row <= (archive_end_row or -1)
+        and todo.range.start.row > archive_start_row
+        and todo.range["end"].row <= (archive_end_row or -1)
 
     if not in_arch and todo.state == "checked" and not todo.parent_id and not todos_to_archive[id] then
       -- mark root
@@ -641,7 +641,7 @@ function M.archive_todos(opts)
   -- rebuild buffer content
   -- start with re-creating the buffer's 'active' section (non-archived)
 
-  local new_content = {} --- lines that will remain in the main document
+  local new_content = {}   --- lines that will remain in the main document
   local archive_lines = {} --- lines that will live under the Archive heading
 
   -- Walk every line of the current buffer.
@@ -926,11 +926,13 @@ function M.compute_diff_toggle(items, target_state)
   for _, todo_item in ipairs(items) do
     local row = todo_item.todo_marker.position.row
 
-    local item_target_state = target_state or (todo_item.state == "unchecked" and "checked" or "unchecked")
+    local item_target_state = target_state or (todo_item.state == "unchecked" and "checked" or "unchecked" or "canceled")
 
     if todo_item.state ~= item_target_state then
       local new_marker = item_target_state == "checked" and config.options.todo_markers.checked
-        or config.options.todo_markers.unchecked
+          or config.options.todo_markers.canceled
+          or config.options.todo_markers.unchecked
+      print(new_marker)
 
       local hunk = make_marker_replacement_hunk(row, todo_item, new_marker)
       table.insert(hunks, hunk)
@@ -966,6 +968,7 @@ function M.set_todo_item(items, params, ctx)
     local target_state = params[i][1]
     if item.state ~= target_state then
       local item_hunks = M.compute_diff_toggle({ item }, target_state)
+      print(item_hunks)
       vim.list_extend(hunks, item_hunks)
     end
   end
@@ -1100,7 +1103,7 @@ function M.propagate_toggle(ctx, items, todo_map, target_state)
         local child = todo_map[child_id]
         if child then
           local will_be_unchecked = want[child_id] == "unchecked"
-            or (want[child_id] == nil and child.state == "unchecked")
+              or (want[child_id] == nil and child.state == "unchecked")
           if will_be_unchecked then
             return true -- Any direct child unchecked
           end

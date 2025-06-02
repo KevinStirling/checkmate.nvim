@@ -196,8 +196,8 @@ function M.generate_style_defaults()
 
   -- Define contrast thresholds
   local text_contrast_ratio = 4.5 -- Standard for normal text (WCAG AA)
-  local ui_contrast_ratio = 3.0 -- Standard for UI elements (WCAG AA)
-  local dim_contrast_ratio = 2.5 -- For less important elements like done items
+  local ui_contrast_ratio = 3.0   -- Standard for UI elements (WCAG AA)
+  local dim_contrast_ratio = 2.5  -- For less important elements like done items
 
   -- Ensure accent colors have adequate contrast against the background
   local colors = {}
@@ -208,8 +208,8 @@ function M.generate_style_defaults()
   end
 
   -- Default colors if accent colors weren't available
-  local default_warn = M.ensure_contrast(base.is_light_bg and "#e65100" or "#ff9500", base.bg, ui_contrast_ratio) -- orange
-  local default_ok = M.ensure_contrast(base.is_light_bg and "#008800" or "#00cc66", base.bg, ui_contrast_ratio) -- green
+  local default_warn = M.ensure_contrast(base.is_light_bg and "#e65100" or "#ff9500", base.bg, ui_contrast_ratio)    -- orange
+  local default_ok = M.ensure_contrast(base.is_light_bg and "#008800" or "#00cc66", base.bg, ui_contrast_ratio)      -- green
   local default_special = M.ensure_contrast(base.is_light_bg and "#8060a0" or "#e3b3ff", base.bg, ui_contrast_ratio) -- purple
 
   -- Style settings for highlights
@@ -255,7 +255,7 @@ function M.generate_style_defaults()
 
   -- Canceled todos - should look "canceled"
   style.canceled_marker = {
-    fg = colors.diagnostic_ok or default_ok,
+    fg = colors.diagnostic_warn or default_warn,
     bold = true,
   }
 

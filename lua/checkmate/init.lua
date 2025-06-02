@@ -219,7 +219,7 @@ function M.toggle(target_state)
     local parser = require("checkmate.parser")
     local cursor = vim.api.nvim_win_get_cursor(0)
     local todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       if smart_toggle_enabled then
         api.propagate_toggle(ctx, { todo_item }, transaction._state.todo_map, target_state)
@@ -305,10 +305,12 @@ function M.set_canceled()
   local transaction = require("checkmate.transaction")
   local config = require("checkmate.config")
   local parser = require("checkmate.parser")
+  local util = require("checkmate.util")
+  local highlights = require("checkmate.highlights")
   local todo_item
 
   local profiler = require("checkmate.profiler")
-  profiler.start("M.toggle")
+  profiler.start("M.set_canceled")
 
   local smart_toggle_enabled = config.options.smart_toggle and config.options.smart_toggle.enabled
 
@@ -318,33 +320,37 @@ function M.set_canceled()
     -- If toggle() is run within an existing transaction, we will use the cursor position
     local cursor = vim.api.nvim_win_get_cursor(0)
     todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       if smart_toggle_enabled then
-        api.propagate_toggle(ctx, { todo_item }, transaction._state.todo_map, "canceled")
+        local todo_map = transaction._state.todo_map
+        api.propagate_toggle(ctx, { todo_item }, todo_map, "canceled")
       else
-        ctx.add_op(api.toggle_state, todo_item.id, "canceled")
+        ctx.add_op(api.set_todo_item, todo_item.id, "canceled")
       end
     end
-    profiler.stop("M.toggle")
     return true
   end
 
+  local is_visual = util.is_visual_mode()
   local bufnr = vim.api.nvim_get_current_buf()
-
-  -- If smart toggle is enabled, we need the todo_map
-  local todo_map = smart_toggle_enabled and parser.get_todo_map(bufnr) or nil
+  -- we go ahead a keep the parsed todo_map so that we can initialize the transaction below without it
+  -- also having to discover_todos
+  local todo_items, todo_map = api.collect_todo_items_from_selection(is_visual)
 
   transaction.run(bufnr, todo_map, function(_ctx)
-    if smart_toggle_enabled and todo_map then
-      api.propagate_toggle(_ctx, { todo_item }, todo_map, "canceled")
+    if smart_toggle_enabled then
+      api.propagate_toggle(_ctx, todo_items, todo_map, "canceled")
     else
-      _ctx.add_op(api.set_todo_item, todo_item.id, "canceled")
+      for _, item in ipairs(todo_items) do
+        _ctx.add_op(api.set_todo_item, item.id, "canceled")
+      end
     end
   end, function()
-    require("checkmate.highlights").apply_highlighting(bufnr)
+    highlights.apply_highlighting(bufnr)
   end)
 
+  profiler.stop("M.cancel")
   return true
 end
 
@@ -368,7 +374,6 @@ end
 ---
 ---@return boolean success
 function M.cancel()
-  vim.notify("canceling!")
   return M.set_canceled()
 end
 
@@ -402,7 +407,7 @@ function M.add_metadata(metadata_name, value)
     local parser = require("checkmate.parser")
     local cursor = vim.api.nvim_win_get_cursor(0)
     local todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       ctx.add_op(api.add_metadata, todo_item.id, metadata_name, value)
     end
@@ -445,7 +450,7 @@ function M.remove_metadata(metadata_name)
     local parser = require("checkmate.parser")
     local cursor = vim.api.nvim_win_get_cursor(0)
     local todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       ctx.add_op(api.remove_metadata, todo_item.id, metadata_name)
     end
@@ -486,7 +491,7 @@ function M.remove_all_metadata()
     local parser = require("checkmate.parser")
     local cursor = vim.api.nvim_win_get_cursor(0)
     local todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       ctx.add_op(api.remove_all_metadata, todo_item.id)
     end
@@ -532,7 +537,7 @@ function M.toggle_metadata(meta_name, custom_value)
     local parser = require("checkmate.parser")
     local cursor = vim.api.nvim_win_get_cursor(0)
     local todo_item =
-      parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
+        parser.get_todo_item_at_position(ctx.bufnr, cursor[1] - 1, cursor[2], { todo_map = transaction._state.todo_map })
     if todo_item then
       ctx.add_op(api.toggle_metadata, todo_item.id, meta_name, custom_value)
     end
@@ -636,7 +641,7 @@ function M.debug_at_cursor()
 
   local bufnr = vim.api.nvim_get_current_buf()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  row = row - 1 -- normalize
+  row = row - 1           -- normalize
 
   local extmark_id = 9001 -- Arbitrary unique ID for debug highlight
 
