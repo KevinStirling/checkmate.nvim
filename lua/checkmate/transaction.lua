@@ -70,7 +70,6 @@ function M.run(bufnr, todo_map, entry_fn, post_fn)
           extmark_id = extmark_id,
           params = { ... },
         })
-        print(M._state.op_queue)
       end
     end,
 

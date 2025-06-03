@@ -329,7 +329,7 @@ local _DEFAULTS = {
   todo_markers = {
     unchecked = "□",
     checked = "✔",
-    canceled = "󰰱"
+    canceled = "󰰱",
   },
   style = {},
   todo_action_depth = 1, --  Depth within a todo item's hierachy from which actions (e.g. toggle) will act on the parent todo item

@@ -69,7 +69,7 @@ M.list_item_markers = { "-", "+", "*" }
 local PATTERN_CACHE = {
   checked_todo = nil,
   unchecked_todo = nil,
-  canceled_todo = nil
+  canceled_todo = nil,
 }
 
 function M.clear_pattern_cache()
@@ -176,7 +176,7 @@ function M.get_todo_item_state(line)
     log.trace("Matched checked pattern", { module = "parser" })
   elseif util.match_first(canceled_patterns, line) then
     todo_state = "canceled"
-    log.trace("Matched canceled pattern", { module = "parser"})
+    log.trace("Matched canceled pattern", { module = "parser" })
   end
 
   log.trace("Todo type: " .. (todo_state or "nil"), { module = "parser" })

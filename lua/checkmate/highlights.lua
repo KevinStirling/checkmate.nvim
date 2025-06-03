@@ -275,7 +275,9 @@ function M.highlight_todo_marker(bufnr, todo_item)
 
   -- Only highlight if we have a valid position
   if marker_pos.col >= 0 then
-    local hl_group = todo_item.state == "checked" and "CheckmateCheckedMarker" or "CheckmateUncheckedMarker" or "canceled" and "CheckmateCanceledMarker"
+    local hl_group = todo_item.state == "checked" and "CheckmateCheckedMarker"
+      or "CheckmateUncheckedMarker"
+      or "canceled" and "CheckmateCanceledMarker"
 
     vim.api.nvim_buf_set_extmark(bufnr, config.ns, marker_pos.row, marker_pos.col, {
       end_row = marker_pos.row,
